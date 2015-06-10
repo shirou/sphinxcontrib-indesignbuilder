@@ -1,4 +1,4 @@
-for Sphinx Indesign Builder 
+Sphinx Indesign Builder 
 ================================================
 
 THIS IS NOT COMPLETED AT ALL YET.
