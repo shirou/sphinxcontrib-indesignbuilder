@@ -12,7 +12,7 @@ from sphinx.util.console import bold, darkgreen, brown
 from sphinx.util.nodes import inline_all_toctrees
 
 from .writer import IndesignWriter
-
+from .webdbwriter import WebDBXMLWriter
 
 class IndesignXMLBuilder(Builder):
     """
@@ -187,6 +187,28 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
         self.copy_download_files()
 
 
+class WebDBXMLBuilder(IndesignXMLBuilder):
+    name = 'webdb'
+    out_suffix = '.xml'
+
+    def prepare_writing(self, docnames, single=False):
+        self.docwriter = WebDBXMLWriter(self, single=False)
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)
+        self._docnames = docnames
+
+class SingleWebDBXMLBuilder(SingleIndesignXMLBuilder):
+    name = 'singlewebdb'
+    out_suffix = '.xml'
+
+    def prepare_writing(self, docnames, single=False):
+        self.docwriter = WebDBXMLWriter(self, single=True)
+        if not os.path.exists(self.outdir):
+            os.makedirs(self.outdir)
+        self._docnames = docnames
+
 def setup(app):
     app.add_builder(IndesignXMLBuilder)
     app.add_builder(SingleIndesignXMLBuilder)
+    app.add_builder(WebDBXMLBuilder)
+    app.add_builder(SingleWebDBXMLBuilder)

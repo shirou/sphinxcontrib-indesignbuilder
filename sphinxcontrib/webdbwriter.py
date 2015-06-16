@@ -10,7 +10,7 @@ import os.path
 import os
 
 
-class IndesignWriter(Writer):
+class WebDBXMLWriter(Writer):
     def __init__(self, builder, single=False):
         Writer.__init__(self)
         self.single = single
@@ -18,13 +18,13 @@ class IndesignWriter(Writer):
 
     def translate(self):
         if self.single:
-            self.visitor = visitor = SingleIndesignVisitor(self.document)
+            self.visitor = visitor = SingleWebDBXMLVisitor(self.document)
         else:
-            self.visitor = visitor = IndesignVisitor(self.document)
+            self.visitor = visitor = WebDBXMLVisitor(self.document)
         self.document.walkabout(visitor)
         self.output = visitor.astext()
 
-class IndesignVisitor(NodeVisitor):
+class WebDBXMLVisitor(NodeVisitor):
     def __init__(self, document):
         NodeVisitor.__init__(self, document)
 
@@ -34,6 +34,7 @@ class IndesignVisitor(NodeVisitor):
 
         self.listenv = None
         self.within_index = False
+        self.licount = 0
 
     def newline(self):
         self.generator.outf.write("\n")
@@ -55,7 +56,7 @@ class IndesignVisitor(NodeVisitor):
     def visit_paragraph(self, node):
         # does not print <p> in list
         if not self.listenv:
-            self.generator.startElement('p', {})
+            self.generator.startElement('p', {'aid:pstyle': u'本文'})
 
     def depart_paragraph(self, node):
         if not self.listenv:
@@ -71,7 +72,14 @@ class IndesignVisitor(NodeVisitor):
         self.newline()
 
     def visit_title(self, node):
-        level = "h" + str(self.sec_level + 1)
+        level = ""
+        if self.sec_level == 1:
+            level = u"大見出し"
+        elif self.sec_level == 2:
+            level = u"中見出し"
+        elif self.sec_level == 3:
+            level = u"小見出し"
+
         self.generator.startElement('title', 
                                     {"aid:pstyle": level})
 
@@ -180,10 +188,11 @@ class IndesignVisitor(NodeVisitor):
         if "highlight_args" in node.attributes.keys():
             self.generator.startElement(
                 "listinfo",
-                {"language": node.attributes["language"]})
+                {'aid:cstyle': u"リスト",
+                 "language": node.attributes["language"]})
             self._lit_block_tag = "listinfo"
         else:
-            self.generator.startElement("literal", {})
+            self.generator.startElement("literal", {'aid:cstyle': u"コマンド"})
             self._lit_block_tag = "literal"
         self.newline()
 
@@ -194,7 +203,7 @@ class IndesignVisitor(NodeVisitor):
         self.newline()
 
     def visit_literal(self, node):
-        self.generator.startElement("literal", {})
+        self.generator.startElement("literal", {'aid:cstyle': u"コマンド"})
 
     def depart_literal(self, node):
         self.generator.endElement("literal")
@@ -242,23 +251,34 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_bullet_list(self, node):
+        self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
+        self.generator.endElement('p')
         self.listenv = "ul"
         self.generator.startElement("ul", {})
         self.newline()
 
     def depart_bullet_list(self, node):
         self.listenv = None
+        self.licount = 0
         self.generator.endElement("ul")
+        self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
+        self.generator.endElement('p')
         self.newline()
 
     def visit_enumerated_list(self, node):
+        self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
+        self.generator.endElement('p')
         self.listenv = "ol"
         self.generator.startElement("ol", {})
         self.newline()
 
     def depart_enumerated_list(self, node):
         self.listenv = None
+        self.licount = 0
         self.generator.endElement("ol")
+        self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
+        self.generator.endElement('p')
+        self.newline()
 
     def visit_reference(self, node):
         atts = {'class': 'reference'}
@@ -277,26 +297,30 @@ class IndesignVisitor(NodeVisitor):
             atts['class'] += ' image-reference'
         if 'reftitle' in node:
             atts['title'] = node['reftitle']
-        self.generator.startElement("footnote", atts)
-
-        self.generator.endElement("footnote")
+#        self.generator.startElement("footnote", atts)
+#        self.generator.endElement("footnote")
 
 #        if node.get('secnumber'):
 #            self.body.append(('%s' + self.secnumber_suffix) %
 #                             '.'.join(map(str, node['secnumber'])))
 
     def visit_footnote(self, node):
-        self.generator.startElement("footnote", {})
+        pass
+#        self.generator.startElement("footnote", {})
 
     def depart_footnote(self, node):
-        self.generator.endElement("footnote")
+        pass
+#        self.generator.endElement("footnote")
         self.newline()
 
     def visit_list_item(self, node):
-        style = ""
-        if self.listenv:
-            style = self.listenv + "-item"
-        self.generator.startElement("li", {"aid:pstyle": style})
+        self.licount += 1
+        self.generator.startElement("li", {"aid:pstyle": u"箇条書き"})
+        if self.listenv == "ul":
+            self.generator.outf.write("・")
+        else:
+            self.generator.outf.write("{}. ".format(self.licount))
+            
 
     def depart_list_item(self, node):
         self.generator.endElement("li")
@@ -327,18 +351,23 @@ class IndesignVisitor(NodeVisitor):
         self.generator.endElement("listitem")
 
     def visit_definition_list(self, node):
+        self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
+        self.generator.endElement('p')
         self.listenv = "dl"
         self.generator.startElement("dl", {})
         self.newline()
 
     def depart_definition_list(self, node):
         self.listenv = None
+        self.licount = 0
         self.generator.endElement("dl")
+        self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
+        self.generator.endElement('p')
         self.newline()
 
     def visit_definition_list_item(self, node):
         pass
-#        self.generator.startElement("dt", {})
+#        self.generator.startElement("dt", {"aid:pstyle": u"箇条書き"})
 
     def depart_definition_list_item(self, node):
         pass
@@ -346,16 +375,14 @@ class IndesignVisitor(NodeVisitor):
 #        self.newline()
 
     def visit_term(self, node):
-        pass
-        self.generator.startElement("dt", {})
+        self.generator.startElement("dt", {'aid:pstyle': u"箇条書き"})
 
     def depart_term(self, node):
-        pass
         self.generator.endElement("dt")
         self.newline()
 
     def visit_definition(self, node):
-        self.generator.startElement("dd", {})
+        self.generator.startElement("dd", {'aid:pstyle': u"箇条書き説明"})
 
     def depart_definition(self, node):
         self.generator.endElement("dd")
@@ -389,7 +416,7 @@ class IndesignVisitor(NodeVisitor):
     def depart_container(self, node):
         pass
 
-class SingleIndesignVisitor(IndesignVisitor):
+class SingleWebDBXMLVisitor(WebDBXMLVisitor):
     sec_level = 0
 
     def visit_start_of_file(self, node):
