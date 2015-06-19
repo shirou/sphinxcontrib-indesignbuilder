@@ -9,6 +9,19 @@ from six import StringIO
 import os.path
 import os
 
+marumoji = {
+    1: "&#x2776;",
+    2: "&#x2777;",
+    3: "&#x2778;",
+    4: "&#x2779;",
+    5: "&#x277A;",
+    6: "&#x277B;",
+    7: "&#x277C;",
+    8: "&#x277D;",
+    9: "&#x277E;",
+    10: "&#x277F;",
+    }
+
 
 class WebDBXMLWriter(Writer):
     def __init__(self, builder, single=False):
@@ -18,15 +31,16 @@ class WebDBXMLWriter(Writer):
 
     def translate(self):
         if self.single:
-            self.visitor = visitor = SingleWebDBXMLVisitor(self.document)
+            self.visitor = visitor = SingleWebDBXMLVisitor(self.document, self.builder)
         else:
-            self.visitor = visitor = WebDBXMLVisitor(self.document)
+            self.visitor = visitor = WebDBXMLVisitor(self.document, self.builder)
         self.document.walkabout(visitor)
         self.output = visitor.astext()
 
 class WebDBXMLVisitor(NodeVisitor):
-    def __init__(self, document):
+    def __init__(self, document, builder):
         NodeVisitor.__init__(self, document)
+        self.builder = builder
 
         self._output = StringIO()
         self.generator = XMLGenerator(self._output, "utf-8")
@@ -35,6 +49,14 @@ class WebDBXMLVisitor(NodeVisitor):
         self.listenv = None
         self.within_index = False
         self.licount = 0
+
+    def find_figunumber(self, fig_id):
+        for docname, v in self.builder.env.toc_fignumbers.items():
+            if 'figure' not in v:
+                return None
+            if fig_id in v['figure']:
+                return v['figure'][fig_id]
+        return None
 
     def newline(self):
         self.generator.outf.write("\n")
@@ -54,11 +76,16 @@ class WebDBXMLVisitor(NodeVisitor):
         self.generator.outf.write("</doc>")
 
     def visit_paragraph(self, node):
+        # does not print <p> in block_quote
+        if isinstance(node.parent, nodes.block_quote):
+            return
         # does not print <p> in list
         if not self.listenv:
             self.generator.startElement('p', {'aid:pstyle': u'本文'})
 
     def depart_paragraph(self, node):
+        if isinstance(node.parent, nodes.block_quote):
+            return
         if not self.listenv:
             self.generator.endElement('p')
             self.newline()
@@ -117,10 +144,10 @@ class WebDBXMLVisitor(NodeVisitor):
         pass
 
     def visit_emphasis(self, node):
-        self.generator.startElement("emphasis", {})
+        self.generator.startElement("i", {'aid:cstyle': u"イタリック（変形斜体）"})
 
     def depart_emphasis(self, node):
-        self.generator.endElement("emphasis")
+        self.generator.endElement("i")
 
     def visit_math(self, node):
         pass
@@ -136,7 +163,7 @@ class WebDBXMLVisitor(NodeVisitor):
         self.generator.endElement("programlisting")
 
     def visit_strong(self, node):
-        self.generator.startElement("b", {})
+        self.generator.startElement("b", {'aid:cstyle': u"太字"})
 
     def depart_strong(self, node):
         self.generator.endElement("b")
@@ -188,16 +215,14 @@ class WebDBXMLVisitor(NodeVisitor):
         if "highlight_args" in node.attributes.keys():
             self.generator.startElement(
                 "listinfo",
-                {'aid:cstyle': u"リスト",
+                {'aid:pstyle': u"リスト",
                  "language": node.attributes["language"]})
             self._lit_block_tag = "listinfo"
         else:
-            self.generator.startElement("literal", {'aid:cstyle': u"コマンド"})
+            self.generator.startElement("literal", {'aid:pstyle': u"コマンド"})
             self._lit_block_tag = "literal"
-        self.newline()
 
     def depart_literal_block(self, node):
-        self.newline()
         self.generator.endElement(self._lit_block_tag)
         del self._lit_block_tag
         self.newline()
@@ -227,16 +252,20 @@ class WebDBXMLVisitor(NodeVisitor):
         pass
 
     def visit_figure(self, node):
-        pass
+        self.generator.startElement('img', {})
 
     def depart_figure(self, node):
-        pass
+        self.generator.endElement('img')
 
     def visit_image(self, node):
-        pass
+        if 'uri' in node:
+            filepath = ("file:///" + node['uri']).encode('utf-8')
+            self.generator.startElement('Image', {'href': filepath})
+            self.generator.endElement('Image')
 
     def depart_image(self, node):
         pass
+
 
     def visit_reference(self, node):
         pass
@@ -245,17 +274,24 @@ class WebDBXMLVisitor(NodeVisitor):
         pass
 
     def visit_caption(self, node):
-        pass
+        self.generator.startElement('caption', {'aid:pstyle': u"キャプション"})
+        if isinstance(node.parent, nodes.figure):
+            figure_id = node.parent['ids'][0]
+            figtype = 'figure'
+            numbers = self.find_figunumber(figure_id)
+            if numbers:
+                s = "●図{0}\t".format('.'.join(map(str, numbers)))
+                self.generator.outf.write(s)
+
 
     def depart_caption(self, node):
-        pass
+        self.generator.endElement('caption')
 
     def visit_bullet_list(self, node):
         self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
         self.generator.endElement('p')
         self.listenv = "ul"
         self.generator.startElement("ul", {})
-        self.newline()
 
     def depart_bullet_list(self, node):
         self.listenv = None
@@ -269,8 +305,7 @@ class WebDBXMLVisitor(NodeVisitor):
         self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
         self.generator.endElement('p')
         self.listenv = "ol"
-        self.generator.startElement("ol", {})
-        self.newline()
+        self.generator.startElement("ol", {'aid:cstyle': u"丸文字"})
 
     def depart_enumerated_list(self, node):
         self.listenv = None
@@ -281,36 +316,22 @@ class WebDBXMLVisitor(NodeVisitor):
         self.newline()
 
     def visit_reference(self, node):
-        atts = {'class': 'reference'}
-        if node.get('internal') or 'refuri' not in node:
-            atts['class'] += ' internal'
-        else:
-            atts['class'] += ' external'
-        if 'refuri' in node:
-            atts['href'] = node['refuri']
-        else:
-            assert 'refid' in node, \
-                   'References must have "refuri" or "refid" attribute.'
-            atts['href'] = '#' + node['refid']
-        if not isinstance(node.parent, nodes.TextElement):
-            assert len(node) == 1 and isinstance(node[0], nodes.image)
-            atts['class'] += ' image-reference'
-        if 'reftitle' in node:
-            atts['title'] = node['reftitle']
-#        self.generator.startElement("footnote", atts)
-#        self.generator.endElement("footnote")
+        pass
 
+    def depart_reference(self, node):
+        if 'refuri' in node:
+            self.generator.startElement("footnote", {})
+            self.generator.outf.write(node['refuri'].encode('utf-8'))
+            self.generator.endElement("footnote")
 #        if node.get('secnumber'):
 #            self.body.append(('%s' + self.secnumber_suffix) %
 #                             '.'.join(map(str, node['secnumber'])))
 
     def visit_footnote(self, node):
-        pass
-#        self.generator.startElement("footnote", {})
+        self.generator.startElement("footnote", {})
 
     def depart_footnote(self, node):
-        pass
-#        self.generator.endElement("footnote")
+        self.generator.endElement("footnote")
         self.newline()
 
     def visit_list_item(self, node):
@@ -319,7 +340,8 @@ class WebDBXMLVisitor(NodeVisitor):
         if self.listenv == "ul":
             self.generator.outf.write("・")
         else:
-            self.generator.outf.write("{}. ".format(self.licount))
+            m = marumoji[self.licount]
+            self.generator.outf.write(m)
             
 
     def depart_list_item(self, node):
@@ -355,7 +377,6 @@ class WebDBXMLVisitor(NodeVisitor):
         self.generator.endElement('p')
         self.listenv = "dl"
         self.generator.startElement("dl", {})
-        self.newline()
 
     def depart_definition_list(self, node):
         self.listenv = None
@@ -376,6 +397,7 @@ class WebDBXMLVisitor(NodeVisitor):
 
     def visit_term(self, node):
         self.generator.startElement("dt", {'aid:pstyle': u"箇条書き"})
+        self.generator.outf.write("・")
 
     def depart_term(self, node):
         self.generator.endElement("dt")
@@ -389,8 +411,7 @@ class WebDBXMLVisitor(NodeVisitor):
         self.newline()
 
     def visit_block_quote(self, node):
-        self.generator.startElement("quote", {})
-        self.newline()
+        self.generator.startElement("quote", {'aid:pstyle': u"引用"})
 
     def depart_block_quote(self, node):
         self.generator.endElement("quote")
