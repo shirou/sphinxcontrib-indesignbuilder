@@ -336,7 +336,6 @@ class WebDBXMLVisitor(NodeVisitor):
         self.newline()
 
     def visit_list_item(self, node):
-        print(self.licount, type(node))
         if self.licount > 0:
             self.newline()
         self.licount += 1
