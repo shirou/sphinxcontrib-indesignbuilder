@@ -14,6 +14,7 @@ from sphinx.util.nodes import inline_all_toctrees
 from .writer import IndesignWriter
 from .webdbwriter import WebDBXMLWriter
 
+
 class IndesignXMLBuilder(Builder):
     """
     Builds indesign xml.
@@ -47,7 +48,8 @@ class IndesignXMLBuilder(Builder):
         # copy image files
         if self.images:
             ensuredir(path.join(self.outdir, self.imagedir))
-            for src in self.app.status_iterator(self.images, 'copying images... ',
+            for src in self.app.status_iterator(self.images,
+                                                'copying images... ',
                                                 brown, len(self.images)):
                 dest = self.images[src]
                 try:
@@ -150,18 +152,18 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
             toc = ''
             display_toc = False
         return dict(
-            parents = [],
-            prev = None,
-            next = None,
-            docstitle = None,
-            title = self.config.html_title,
-            meta = None,
-            body = body,
-            metatags = metatags,
-            rellinks = [],
-            sourcename = '',
-            toc = toc,
-            display_toc = display_toc,
+            parents=[],
+            prev=None,
+            next=None,
+            docstitle=None,
+            title=self.config.html_title,
+            meta=None,
+            body=body,
+            metatags=metatags,
+            rellinks=[],
+            sourcename='',
+            toc=toc,
+            display_toc=display_toc,
         )
 
     def write(self, *ignored):
@@ -197,6 +199,7 @@ class WebDBXMLBuilder(IndesignXMLBuilder):
             os.makedirs(self.outdir)
         self._docnames = docnames
 
+
 class SingleWebDBXMLBuilder(SingleIndesignXMLBuilder):
     name = 'singlewebdb'
     out_suffix = '.xml'
@@ -206,6 +209,7 @@ class SingleWebDBXMLBuilder(SingleIndesignXMLBuilder):
         if not os.path.exists(self.outdir):
             os.makedirs(self.outdir)
         self._docnames = docnames
+
 
 def setup(app):
     app.add_builder(IndesignXMLBuilder)

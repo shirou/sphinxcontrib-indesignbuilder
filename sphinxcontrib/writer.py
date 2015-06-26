@@ -24,6 +24,7 @@ class IndesignWriter(Writer):
         self.document.walkabout(visitor)
         self.output = visitor.astext()
 
+
 class IndesignVisitor(NodeVisitor):
     def __init__(self, document):
         NodeVisitor.__init__(self, document)
@@ -72,7 +73,7 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_title(self, node):
         level = "h" + str(self.sec_level + 1)
-        self.generator.startElement('title', 
+        self.generator.startElement('title',
                                     {"aid:pstyle": level})
 
     def depart_title(self, node):
@@ -169,13 +170,12 @@ class IndesignVisitor(NodeVisitor):
     def depart_unknown_visit(self, node):
         pass
 
-
     def visit_number_reference(self, node):
         pass
 
     def depart_number_reference(self, node):
         pass
-        
+
     def visit_literal_block(self, node):
         if "highlight_args" in node.attributes.keys():
             self.generator.startElement(
@@ -385,9 +385,10 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_container(self, node):
         pass
-    
+
     def depart_container(self, node):
         pass
+
 
 class SingleIndesignVisitor(IndesignVisitor):
     sec_level = 0
