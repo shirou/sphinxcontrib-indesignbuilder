@@ -31,11 +31,13 @@ class WebDBXMLWriter(Writer):
 
     def translate(self):
         if self.single:
-            self.visitor = visitor = SingleWebDBXMLVisitor(self.document, self.builder)
+            visitor = SingleWebDBXMLVisitor(self.document, self.builder)
         else:
-            self.visitor = visitor = WebDBXMLVisitor(self.document, self.builder)
+            visitor = WebDBXMLVisitor(self.document, self.builder)
+        self.visitor = visitor
         self.document.walkabout(visitor)
         self.output = visitor.astext()
+
 
 class WebDBXMLVisitor(NodeVisitor):
     def __init__(self, document, builder):
@@ -105,8 +107,7 @@ class WebDBXMLVisitor(NodeVisitor):
             level = u"中見出し"
         elif self.sec_level == 3:
             level = u"小見出し"
-        self.generator.startElement('title', 
-                                    {"aid:pstyle": level})
+        self.generator.startElement('title', {"aid:pstyle": level})
 
     def depart_title(self, node):
         self.generator.endElement('title')
@@ -201,13 +202,12 @@ class WebDBXMLVisitor(NodeVisitor):
     def depart_unknown_visit(self, node):
         pass
 
-
     def visit_number_reference(self, node):
         pass
 
     def depart_number_reference(self, node):
         pass
-        
+
     def visit_literal_block(self, node):
         self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
         self.generator.endElement('p')
@@ -255,18 +255,21 @@ class WebDBXMLVisitor(NodeVisitor):
         self.generator.startElement('img', {})
 
     def depart_figure(self, node):
+        if self.imgfilepath:
+            self.generator.startElement('p', {'aid:pstyle': u"赤字段落"})
+            self.generator.outf.write(self.imgfilepath)
+            self.generator.endElement('p')
+            self.imgfilepath = None
+
         self.generator.endElement('img')
+        self.newline()
 
     def visit_image(self, node):
         if 'uri' in node:
-            filepath = ("file:///" + node['uri']).encode('utf-8')
-            self.generator.startElement('p', {'aid:pstyle': u"赤字段落"})
-            self.generator.outf.write(filepath)
-            self.generator.endElement('p')
+            self.imgfilepath = ("file:///" + node['uri']).encode('utf-8')
 
     def depart_image(self, node):
         pass
-
 
     def visit_reference(self, node):
         pass
@@ -284,9 +287,9 @@ class WebDBXMLVisitor(NodeVisitor):
                 s = "●図{0}\t".format('.'.join(map(str, numbers)))
                 self.generator.outf.write(s)
 
-
     def depart_caption(self, node):
         self.generator.endElement('caption')
+        self.newline()
 
     def visit_bullet_list(self, node):
         self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
@@ -307,7 +310,6 @@ class WebDBXMLVisitor(NodeVisitor):
         self.newline()
         self.listenv = "ol"
         self.generator.startElement("ol", {'aid:cstyle': u"丸文字"})
-        self.newline()
 
     def depart_enumerated_list(self, node):
         self.listenv = None
@@ -334,6 +336,9 @@ class WebDBXMLVisitor(NodeVisitor):
         self.newline()
 
     def visit_list_item(self, node):
+        print(self.licount, type(node))
+        if self.licount > 0:
+            self.newline()
         self.licount += 1
         self.generator.startElement("li", {"aid:pstyle": u"箇条書き"})
         if self.listenv == "ul":
@@ -346,7 +351,7 @@ class WebDBXMLVisitor(NodeVisitor):
 
     def depart_list_item(self, node):
         self.generator.endElement("li")
-        self.newline()
+        sibling = node.parent.next_node(siblings=True)
 
     def visit_field_list(self, node):
         self.generator.startElement("variablelist", {})
@@ -383,31 +388,27 @@ class WebDBXMLVisitor(NodeVisitor):
         self.listenv = None
         self.licount = 0
         self.generator.endElement("dl")
-        self.newline()
 
     def visit_definition_list_item(self, node):
         pass
-#        self.generator.startElement("dt", {"aid:pstyle": u"箇条書き"})
 
     def depart_definition_list_item(self, node):
         pass
-#        self.generator.endElement("dt")
-#        self.newline()
 
     def visit_term(self, node):
+        self.newline()
         self.generator.startElement("dt", {'aid:pstyle': u"箇条書き"})
         self.generator.outf.write("・")
 
     def depart_term(self, node):
         self.generator.endElement("dt")
-        self.newline()
 
     def visit_definition(self, node):
         self.generator.startElement("dd", {'aid:pstyle': u"箇条書き説明"})
 
     def depart_definition(self, node):
         self.generator.endElement("dd")
-        self.newline()
+        sibling = node.parent.next_node(siblings=True, ascend=True)
 
     def visit_block_quote(self, node):
         self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
@@ -435,9 +436,10 @@ class WebDBXMLVisitor(NodeVisitor):
 
     def visit_container(self, node):
         pass
-    
+
     def depart_container(self, node):
         pass
+
 
 class SingleWebDBXMLVisitor(WebDBXMLVisitor):
     sec_level = 0
