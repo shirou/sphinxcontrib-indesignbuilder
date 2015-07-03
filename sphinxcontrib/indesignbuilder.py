@@ -13,7 +13,7 @@ from sphinx.util.nodes import inline_all_toctrees
 
 from .writer import IndesignWriter
 from .webdbwriter import WebDBXMLWriter
-
+from .directives import ColumnDirective
 
 class IndesignXMLBuilder(Builder):
     """
@@ -211,8 +211,28 @@ class SingleWebDBXMLBuilder(SingleIndesignXMLBuilder):
         self._docnames = docnames
 
 
+## copied from japanesesupport.py
+def trunc_whitespace(app, doctree, docname):
+    from docutils.nodes import Text, paragraph
+    if not app.config.japanesesupport_trunc_whitespace:
+        return
+    for node in doctree.traverse(Text):
+        if isinstance(node.parent, paragraph):
+            newtext = node.astext()
+            for c in "\n\r\t":
+                newtext = newtext.replace(c, "")
+            newtext = newtext.strip()
+            node.parent.replace(node, Text(newtext))
+
+
 def setup(app):
     app.add_builder(IndesignXMLBuilder)
     app.add_builder(SingleIndesignXMLBuilder)
     app.add_builder(WebDBXMLBuilder)
     app.add_builder(SingleWebDBXMLBuilder)
+
+    app.add_directive('column', ColumnDirective)
+
+
+    app.add_config_value('japanesesupport_trunc_whitespace', True, True)
+    app.connect("doctree-resolved", trunc_whitespace)

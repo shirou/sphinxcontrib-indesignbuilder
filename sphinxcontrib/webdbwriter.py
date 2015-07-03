@@ -51,6 +51,7 @@ class WebDBXMLVisitor(NodeVisitor):
         self.listenv = None
         self.within_index = False
         self.licount = 0
+        self.admonition = None
 
     def find_figunumber(self, fig_id):
         for docname, v in self.builder.env.toc_fignumbers.items():
@@ -83,7 +84,11 @@ class WebDBXMLVisitor(NodeVisitor):
             return
         # does not print <p> in list
         if not self.listenv:
-            self.generator.startElement('p', {'aid:pstyle': u'本文'})
+            style = u'本文'
+            if self.admonition == 'column':
+                style = u'コラム本文'
+
+            self.generator.startElement('p', {'aid:pstyle': style})
 
     def depart_paragraph(self, node):
         if isinstance(node.parent, nodes.block_quote):
@@ -100,6 +105,9 @@ class WebDBXMLVisitor(NodeVisitor):
         self.sec_level -= 1
 
     def visit_title(self, node):
+        if self.admonition:
+            return
+
         level = ""
         if self.sec_level == 1:
             level = u"大見出し"
@@ -110,6 +118,8 @@ class WebDBXMLVisitor(NodeVisitor):
         self.generator.startElement('title', {"aid:pstyle": level})
 
     def depart_title(self, node):
+        if self.admonition:
+            return
         self.generator.endElement('title')
         dtp = u'<?dtp level="{0}" section="{1}"?>'.format(
             self.sec_level + 1,
@@ -142,7 +152,7 @@ class WebDBXMLVisitor(NodeVisitor):
         pass
 
     def visit_emphasis(self, node):
-        self.generator.startElement("i", {'aid:cstyle': u"イタリック（変形斜体）"})
+        self.generator.startElement("i", {'aid:cstyle': u"イタリック"})
 
     def depart_emphasis(self, node):
         self.generator.endElement("i")
@@ -284,8 +294,10 @@ class WebDBXMLVisitor(NodeVisitor):
             figtype = 'figure'
             numbers = self.find_figunumber(figure_id)
             if numbers:
-                s = "●図{0}\t".format('.'.join(map(str, numbers)))
+                self.generator.startElement('b', {'aid:cstyle': u"太字"})
+                s = "●図{0}".format('.'.join(map(str, numbers)))
                 self.generator.outf.write(s)
+                self.generator.endElement('b')
 
     def depart_caption(self, node):
         self.generator.endElement('caption')
@@ -438,6 +450,15 @@ class WebDBXMLVisitor(NodeVisitor):
 
     def depart_container(self, node):
         pass
+
+    def visit_admonition(self, node):
+        self.generator.startElement("title", {'aid:pstyle': u"コラム見出し"})
+        self.admonition = 'column'
+        self.newline()
+
+    def depart_admonition(self, node):
+        self.generator.endElement("title")
+        self.admonition = None
 
 
 class SingleWebDBXMLVisitor(WebDBXMLVisitor):
