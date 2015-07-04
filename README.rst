@@ -14,6 +14,16 @@ install
   pip install sphinxcontrib-indesignbuilder
 
 
+and add `'sphinxcontrib.indesignbuilder'` in extensions in your conf.py.
+
+::
+
+   extensions = [
+       'sphinx.ext.ifconfig',
+       'sphinxcontrib.indesignbuilder',
+   ]
+
+
 builder
 ------------
 
