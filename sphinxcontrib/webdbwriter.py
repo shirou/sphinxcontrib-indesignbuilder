@@ -2,7 +2,7 @@
 
 from docutils.writers import Writer
 from docutils import nodes
-from docutils.nodes import NodeVisitor
+from docutils.nodes import NodeVisitor, Text, paragraph
 from xml.sax.saxutils import XMLGenerator
 from six import StringIO
 
@@ -89,6 +89,7 @@ class WebDBXMLVisitor(NodeVisitor):
                 style = u'コラム本文'
 
             self.generator.startElement('p', {'aid:pstyle': style})
+            self.generator.outf.write("　")  # insert empty zenkaku
 
     def depart_paragraph(self, node):
         if isinstance(node.parent, nodes.block_quote):
@@ -213,10 +214,14 @@ class WebDBXMLVisitor(NodeVisitor):
         pass
 
     def visit_number_reference(self, node):
-        pass
+        self.generator.startElement("b", {'aid:cstyle': u"太字"})
+        newtext = node.astext()
+        newtext = newtext.replace(" ", "").strip()
+        node.clear()
+        node.append(Text(newtext))
 
     def depart_number_reference(self, node):
-        pass
+        self.generator.endElement('b')
 
     def visit_literal_block(self, node):
         self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})
@@ -321,12 +326,13 @@ class WebDBXMLVisitor(NodeVisitor):
         self.generator.endElement('p')
         self.newline()
         self.listenv = "ol"
-        self.generator.startElement("ol", {'aid:cstyle': u"丸文字"})
+        self.generator.startElement("ol", {})
 
     def depart_enumerated_list(self, node):
         self.listenv = None
         self.licount = 0
         self.generator.endElement("ol")
+        self.newline()
 
     def visit_reference(self, node):
         pass
