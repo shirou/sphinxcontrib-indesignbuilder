@@ -2,12 +2,9 @@
 
 from docutils.writers import Writer
 from docutils import nodes
-from docutils.nodes import NodeVisitor, Text, paragraph
+from docutils.nodes import NodeVisitor, Text
 from xml.sax.saxutils import XMLGenerator
 from six import StringIO
-
-import os.path
-import os
 
 marumoji = {
     1: "&#x2776;",
@@ -126,7 +123,7 @@ class WebDBXMLVisitor(NodeVisitor):
             self.sec_level + 1,
             node.astext(),
         )
-        self.generator.outf.write(dtp.encode('utf-8'))
+        self.generator.outf.write(dtp)
         self.newline()
 
     def visit_Text(self, node):
@@ -272,7 +269,7 @@ class WebDBXMLVisitor(NodeVisitor):
     def depart_figure(self, node):
         if self.imgfilepath:
             self.generator.startElement('p', {'aid:pstyle': u"赤字段落"})
-            self.generator.outf.write(self.imgfilepath)
+            self.generator.outf.write(str(self.imgfilepath))
             self.generator.endElement('p')
             self.imgfilepath = None
 
@@ -286,17 +283,10 @@ class WebDBXMLVisitor(NodeVisitor):
     def depart_image(self, node):
         pass
 
-    def visit_reference(self, node):
-        pass
-
-    def depart_reference(self, node):
-        pass
-
     def visit_caption(self, node):
         self.generator.startElement('caption', {'aid:pstyle': u"キャプション"})
         if isinstance(node.parent, nodes.figure):
             figure_id = node.parent['ids'][0]
-            figtype = 'figure'
             numbers = self.find_figunumber(figure_id)
             if numbers:
                 self.generator.startElement('b', {'aid:cstyle': u"太字"})
@@ -340,7 +330,7 @@ class WebDBXMLVisitor(NodeVisitor):
     def depart_reference(self, node):
         if 'refuri' in node:
             self.generator.startElement("footnote", {})
-            self.generator.outf.write(node['refuri'].encode('utf-8'))
+            self.generator.outf.write(node['refuri'])
             self.generator.endElement("footnote")
 #        if node.get('secnumber'):
 #            self.body.append(('%s' + self.secnumber_suffix) %
@@ -368,7 +358,6 @@ class WebDBXMLVisitor(NodeVisitor):
 
     def depart_list_item(self, node):
         self.generator.endElement("li")
-        sibling = node.parent.next_node(siblings=True)
 
     def visit_field_list(self, node):
         self.generator.startElement("variablelist", {})
@@ -425,7 +414,6 @@ class WebDBXMLVisitor(NodeVisitor):
 
     def depart_definition(self, node):
         self.generator.endElement("dd")
-        sibling = node.parent.next_node(siblings=True, ascend=True)
 
     def visit_block_quote(self, node):
         self.generator.startElement('p', {'aid:pstyle': u'半行アキ'})

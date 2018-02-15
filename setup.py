@@ -7,7 +7,7 @@ In-Design IDML builder
 
 '''
 
-requires = ['Sphinx>=1.0', 'setuptools']
+requires = ['Sphinx>=1.6', 'setuptools']
 
 setup(
     name='sphinxcontrib_indesignbuilder',

@@ -6,9 +6,6 @@ from docutils.nodes import NodeVisitor
 from xml.sax.saxutils import XMLGenerator
 from six import StringIO
 
-import os.path
-import os
-
 
 class IndesignWriter(Writer):
     def __init__(self, builder, single=False):
@@ -82,7 +79,7 @@ class IndesignVisitor(NodeVisitor):
             self.sec_level + 1,
             node.astext(),
         )
-        self.generator.outf.write(dtp.encode('utf-8'))
+        self.generator.outf.write(dtp)
 
         self.newline()
 
@@ -227,9 +224,6 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def depart_image(self, node):
-        pass
-
-    def visit_reference(self, node):
         pass
 
     def depart_reference(self, node):

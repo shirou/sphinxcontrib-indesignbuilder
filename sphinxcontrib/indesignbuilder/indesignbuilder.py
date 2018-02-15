@@ -1,19 +1,21 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, absolute_import
 
-from xml.sax.saxutils import XMLGenerator
-from six import StringIO, iteritems
+from six import iteritems
 import os.path
 import os
+from os import path
 
 from docutils import nodes
 from sphinx.builders import Builder
+from sphinx.util.osutil import ensuredir, copyfile
 from sphinx.util.console import bold, darkgreen, brown
 from sphinx.util.nodes import inline_all_toctrees
 
-from .writer import IndesignWriter
-from .webdbwriter import WebDBXMLWriter
-from .directives import ColumnDirective
+from sphinxcontrib.indesignbuilder.writer import IndesignWriter
+from sphinxcontrib.indesignbuilder.webdbwriter import WebDBXMLWriter
+from sphinxcontrib.indesignbuilder.directives import ColumnDirective
+
 
 class IndesignXMLBuilder(Builder):
     """
@@ -47,7 +49,7 @@ class IndesignXMLBuilder(Builder):
     def copy_image_files(self):
         # copy image files
         if self.images:
-            ensuredir(path.join(self.outdir, self.imagedir))
+            ensuredir(os.path.join(self.outdir, self.imagedir))
             for src in self.app.status_iterator(self.images,
                                                 'copying images... ',
                                                 brown, len(self.images)):
@@ -117,7 +119,7 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
     def assemble_doctree(self):
         master = self.config.master_doc
         tree = self.env.get_doctree(master)
-        tree = inline_all_toctrees(self, set(), master, tree, darkgreen)
+        tree = inline_all_toctrees(self, set(), master, tree, darkgreen, [master])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
         self.fix_refuris(tree)
@@ -211,20 +213,6 @@ class SingleWebDBXMLBuilder(SingleIndesignXMLBuilder):
         self._docnames = docnames
 
 
-## copied from japanesesupport.py
-def trunc_whitespace(app, doctree, docname):
-    from docutils.nodes import Text, paragraph
-    if not app.config.japanesesupport_trunc_whitespace:
-        return
-    for node in doctree.traverse(Text):
-        if isinstance(node.parent, paragraph):
-            newtext = node.astext()
-            for c in "\n\r\t":
-                newtext = newtext.replace(c, "")
-            newtext = newtext.strip()
-            node.parent.replace(node, Text(newtext))
-
-
 def setup(app):
     app.add_builder(IndesignXMLBuilder)
     app.add_builder(SingleIndesignXMLBuilder)
@@ -232,7 +220,3 @@ def setup(app):
     app.add_builder(SingleWebDBXMLBuilder)
 
     app.add_directive('column', ColumnDirective)
-
-
-    app.add_config_value('japanesesupport_trunc_whitespace', True, True)
-    app.connect("doctree-resolved", trunc_whitespace)
