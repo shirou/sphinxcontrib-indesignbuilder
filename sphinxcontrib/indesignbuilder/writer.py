@@ -6,6 +6,7 @@ from docutils.nodes import NodeVisitor
 from xml.sax.saxutils import XMLGenerator
 from six import StringIO
 
+import os
 
 class IndesignWriter(Writer):
     def __init__(self, builder, single=False):
@@ -31,10 +32,13 @@ class IndesignVisitor(NodeVisitor):
         self.generator.outf = self._output
 
         self.listenv = None
+        self.tableenv = False
         self.within_index = False
+        self.restrect_newline = True
 
     def newline(self):
-        self.generator.outf.write("\n")
+        if self.restrect_newline is not True:
+            self.generator.outf.write("\n")
 
     def astext(self):
         return self._output.getvalue()
@@ -52,11 +56,11 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_paragraph(self, node):
         # does not print <p> in list
-        if not self.listenv:
+        if not (self.listenv or self.tableenv):
             self.generator.startElement('p', {})
 
     def depart_paragraph(self, node):
-        if not self.listenv:
+        if not (self.listenv or self.tableenv):
             self.generator.endElement('p')
             self.newline()
 
@@ -69,14 +73,14 @@ class IndesignVisitor(NodeVisitor):
         self.newline()
 
     def visit_title(self, node):
-        level = "h" + str(self.sec_level + 1)
+        level = "h" + str(self.sec_level)
         self.generator.startElement('title',
                                     {"aid:pstyle": level})
 
     def depart_title(self, node):
         self.generator.endElement('title')
         dtp = u'<?dtp level="{0}" section="{1}"?>'.format(
-            self.sec_level + 1,
+            self.sec_level,
             node.astext(),
         )
         self.generator.outf.write(dtp)
@@ -107,10 +111,10 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_emphasis(self, node):
-        self.generator.startElement("emphasis", {})
+        self.generator.startElement("i", {})
 
     def depart_emphasis(self, node):
-        self.generator.endElement("emphasis")
+        self.generator.endElement("i")
 
     def visit_math(self, node):
         pass
@@ -180,8 +184,8 @@ class IndesignVisitor(NodeVisitor):
                 {"language": node.attributes["language"]})
             self._lit_block_tag = "listinfo"
         else:
-            self.generator.startElement("literal", {})
-            self._lit_block_tag = "literal"
+            self.generator.startElement("list", {'type': 'emlist'})
+            self._lit_block_tag = "list"
         self.newline()
 
     def depart_literal_block(self, node):
@@ -191,10 +195,10 @@ class IndesignVisitor(NodeVisitor):
         self.newline()
 
     def visit_literal(self, node):
-        self.generator.startElement("literal", {})
+        self.generator.startElement('tt', {'type': 'inline-code'})
 
     def depart_literal(self, node):
-        self.generator.endElement("literal")
+        self.generator.endElement('tt')
 
     def visit_comment(self, node):
         raise nodes.SkipNode
@@ -221,16 +225,43 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_image(self, node):
-        pass
+        caption = None
+        for c in node.parent.children:
+            if isinstance(c, nodes.caption):
+                caption = c.astext()
+        legend = None
+        for c in node.parent.children:
+            if isinstance(c, nodes.legend):
+                legend = c.astext()
+
+        filename = os.path.basename(os.path.splitext(node['uri'])[0])
+        if node.get('inline'):
+            self.generator.startElement('a', {"linkurl": filename})
+            self.generatorendElement('a')
+        else:
+            self.generator.startElement('img', {})
+            self.generator.startElement('Image', {'href': filename})
+            self.generator.endElement('Image')
+            if caption:
+                self.generator.startElement('caption', {})
+                self.generator.outf.write(caption)
+                self.generator.endElement('caption')
+            if legend:
+               self.add_lines([legend])
+            self.generator.endElement('img')
+        raise nodes.SkipNode
 
     def depart_image(self, node):
         pass
 
     def depart_reference(self, node):
-        pass
+        self.generator.endElement("ref")
 
     def visit_caption(self, node):
-        pass
+        if node.parent.tagname == 'figure':
+            raise nodes.SkipNode
+        else:
+            pass
 
     def depart_caption(self, node):
         pass
@@ -271,20 +302,19 @@ class IndesignVisitor(NodeVisitor):
             atts['class'] += ' image-reference'
         if 'reftitle' in node:
             atts['title'] = node['reftitle']
-        self.generator.startElement("footnote", atts)
+        self.generator.startElement("ref", atts)
 
-        self.generator.endElement("footnote")
+        #self.generator.endElement("ref")
 
 #        if node.get('secnumber'):
 #            self.body.append(('%s' + self.secnumber_suffix) %
 #                             '.'.join(map(str, node['secnumber'])))
 
     def visit_footnote(self, node):
-        self.generator.startElement("footnote", {})
+        self.generator.startElement("footnote", {'id':node['ids'][0]})
 
     def depart_footnote(self, node):
         self.generator.endElement("footnote")
-        self.newline()
 
     def visit_list_item(self, node):
         style = ""
@@ -382,6 +412,112 @@ class IndesignVisitor(NodeVisitor):
 
     def depart_container(self, node):
         pass
+
+    def visit_citation(self, node):
+        self.generator.startElement('a', {})
+        self.generator.outf.write(node.rawsource)
+        #print(node.__dict__)
+
+    def depart_citation(self, node):
+        self.generator.endElement('a')
+
+    def visit_label(self, node):
+        self.generator.startElement('label', {})
+
+    def depart_label(self, node):
+        self.generator.endElement('label')
+
+    def visit_footnote_reference(self, node):
+        self.generator.startElement('footnote', {'href': node['refid']})
+
+    def depart_footnote_reference(self, node):
+        self.generator.endElement('footnote')
+
+    def visit_substitution_definition(self, node):
+        pass
+
+    def depart_substitution_definition(self, node):
+        pass
+
+    def visit_table(self, node):
+        self.tableenv = True
+        self.generator.startElement('table', {})
+
+    def depart_table(self, node):
+        self.generator.endElement('table')
+        self.tableenv = False
+
+    def visit_tgroup(self, node):
+        #self.generator.startElement('tgroup', {})
+        pass
+
+    def depart_tgroup(self, node):
+        #self.generator.endElement('tgroup')
+        pass
+
+    def visit_colspec(self, node):
+        self.generator.startElement('colspec', {})
+
+    def depart_colspec(self, node):
+        self.generator.endElement('colspec')
+
+    def visit_thead(self, node):
+        self.generator.startElement('thead', {'aid:pstyle': 'header'})
+
+    def depart_thead(self, node):
+        self.generator.endElement('thead')
+
+    def visit_row(self, node):
+        self.generator.startElement('tr', {})
+
+    def depart_row(self, node):
+        self.generator.endElement('tr')
+
+    def visit_entry(self, node):
+        #self.generator.startElement('entry', {})
+        pass
+
+    def depart_entry(self, node):
+        #self.generator.endElement('entry')
+        self.generator.outf.write('\t')
+
+    def visit_tbody(self, node):
+        self.generator.startElement('tbody', {})
+
+    def depart_tbody(self, node):
+        self.generator.endElement('tbody')
+
+    def visit_problematic(self, node):
+        pass
+
+    def depart_problematic(self, node):
+        pass
+
+    def visit_superscript(self, node):
+        self.generator.startElement('sup', {})
+
+    def depart_superscript(self, node):
+        self.generator.endElement('sup')
+
+    def visit_column(self, node):
+        self.generator.startElement('column', {})
+        self.generator.outf.write('<title aid:pstyle="column-title">%s</title>' % node['title'])
+
+    def depart_column(self, node):
+        self.generator.endElement('column')
+
+    def visit_raw(self, node):
+        self.generator.startElement('raw', {})
+
+    def depart_raw(self, node):
+        self.generator.endElement('raw')
+
+    def visit_transition(self, node):
+        self.generator.startElement('transition', {})
+
+    def depart_transition(self, node):
+        self.generator.endElement('transition')
+
 
 
 class SingleIndesignVisitor(IndesignVisitor):

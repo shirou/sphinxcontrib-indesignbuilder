@@ -31,5 +31,5 @@ class NamedNoteDirective(Admonition):
         return ret
 
 
-class ColumnDirective(NamedNoteDirective):
-    css_class = 'column'
+#class ColumnDirective(NamedNoteDirective):
+#    css_class = 'column'

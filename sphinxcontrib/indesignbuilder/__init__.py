@@ -11,7 +11,7 @@ from __future__ import absolute_import
 
 from docutils import nodes
 
-from sphinxcontrib.indesignbuilder import indesignbuilder
+from sphinxcontrib.indesignbuilder import indesignbuilder, transforms
 
 
 # from japanesesupport.py
@@ -28,3 +28,4 @@ def trunc_whitespace(app, doctree, docname):
 def setup(app):
     app.connect("doctree-resolved", trunc_whitespace)
     indesignbuilder.setup(app)
+    transforms.setup(app)
