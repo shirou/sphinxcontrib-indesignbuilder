@@ -29,7 +29,3 @@ class NamedNoteDirective(Admonition):
         ret[0]['title'] = title
         ret[0]['name'] = self.name
         return ret
-
-
-#class ColumnDirective(NamedNoteDirective):
-#    css_class = 'column'
