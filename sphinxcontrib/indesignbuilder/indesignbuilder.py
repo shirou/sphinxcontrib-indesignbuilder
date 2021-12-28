@@ -14,7 +14,7 @@ from sphinx.util.nodes import inline_all_toctrees
 
 from sphinxcontrib.indesignbuilder.writer import IndesignWriter
 from sphinxcontrib.indesignbuilder.webdbwriter import WebDBXMLWriter
-#from sphinxcontrib.indesignbuilder.directives import ColumnDirective
+# from sphinxcontrib.indesignbuilder.directives import ColumnDirective
 
 
 class IndesignXMLBuilder(Builder):
@@ -67,9 +67,10 @@ class IndesignXMLBuilder(Builder):
         # copy downloadable files
         if self.env.dlfiles:
             ensuredir(path.join(self.outdir, '_downloads'))
-            for src in self.app.status_iterator(self.env.dlfiles,
-                                                'copying downloadable files... ',
-                                                brown, len(self.env.dlfiles)):
+            for src in self.app.status_iterator(
+                    self.env.dlfiles,
+                    'copying downloadable files... ',
+                    brown, len(self.env.dlfiles)):
                 dest = self.env.dlfiles[src][1]
                 try:
                     copyfile(path.join(self.srcdir, src),
@@ -81,8 +82,8 @@ class IndesignXMLBuilder(Builder):
 
 class SingleIndesignXMLBuilder(IndesignXMLBuilder):
     """
-    A SingleIndesignXMLBuilder subclass that puts the whole document tree on one
-    Indesign XML file.
+    A SingleIndesignXMLBuilder subclass that puts the whole document tree
+    on one Indesign XML file.
     """
     name = 'singleindesign'
     copysource = False
@@ -121,7 +122,8 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
     def assemble_doctree(self):
         master = self.config.master_doc
         tree = self.env.get_doctree(master)
-        tree = inline_all_toctrees(self, set(), master, tree, darkgreen, [master])
+        tree = inline_all_toctrees(
+            self, set(), master, tree, darkgreen, [master])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
         self.fix_refuris(tree)
@@ -220,4 +222,4 @@ def setup(app):
     app.add_builder(SingleIndesignXMLBuilder)
     app.add_builder(WebDBXMLBuilder)
     app.add_builder(SingleWebDBXMLBuilder)
-    #app.add_directive('column', ColumnDirective)
+    # app.add_directive('column', ColumnDirective)
