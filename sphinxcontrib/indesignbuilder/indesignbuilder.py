@@ -14,7 +14,6 @@ from sphinx.util.osutil import ensuredir, copyfile
 
 from sphinxcontrib.indesignbuilder.writer import IndesignWriter
 from sphinxcontrib.indesignbuilder.webdbwriter import WebDBXMLWriter
-# from sphinxcontrib.indesignbuilder.directives import ColumnDirective
 
 logger = logging.getLogger(__file__)
 
