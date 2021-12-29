@@ -29,3 +29,4 @@ class NamedNoteDirective(Admonition):
         ret[0]['title'] = title
         ret[0]['name'] = self.name
         return ret
+

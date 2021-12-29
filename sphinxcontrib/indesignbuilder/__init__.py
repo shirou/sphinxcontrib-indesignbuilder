@@ -17,7 +17,8 @@ from sphinxcontrib.indesignbuilder import indesignbuilder, transforms
 # from japanesesupport.py
 def trunc_whitespace(app, doctree, docname):
     for node in doctree.traverse(nodes.Text):
-        if isinstance(node.parent, nodes.paragraph):
+        if isinstance(node.parent, nodes.paragraph) and \
+                (not node.astext().isspace()):
             newtext = node.astext()
             for c in "\n\r\t":
                 newtext = newtext.replace(c, "")
