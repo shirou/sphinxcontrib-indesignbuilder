@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
 
-from docutils.writers import Writer
+import os
+
 from docutils import nodes
 from docutils.nodes import NodeVisitor
-from xml.sax.saxutils import XMLGenerator
+from docutils.writers import Writer
 from six import StringIO
+from sphinx.util import logging
+from xml.sax.saxutils import XMLGenerator
+
+logger = logging.getLogger(__name__)
 
 import os
 
@@ -159,6 +164,12 @@ class IndesignVisitor(NodeVisitor):
     def depart_tip(self, node):
         self.generator.endElement('tip')
 
+    def visit_caution(self, node):
+        self.generator.startElement('caution', {})
+
+    def depart_caution(self, node):
+        self.generator.endElement('caution')
+
     def visit_warning(self, node):
         self.generator.startElement('warning', {})
 
@@ -178,7 +189,8 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_literal_block(self, node):
-        if "highlight_args" in node.attributes.keys():
+        self.generator.startElement('pre', {})
+        if "highlight_args" in node.attributes.keys() and node.attributes["linenos"] == "True":
             self.generator.startElement(
                 "listinfo",
                 {"language": node.attributes["language"]})
@@ -192,6 +204,7 @@ class IndesignVisitor(NodeVisitor):
         self.newline()
         self.generator.endElement(self._lit_block_tag)
         del self._lit_block_tag
+        self.generator.endElement('pre')
         self.newline()
 
     def visit_literal(self, node):
@@ -237,7 +250,7 @@ class IndesignVisitor(NodeVisitor):
         filename = os.path.basename(os.path.splitext(node['uri'])[0])
         if node.get('inline'):
             self.generator.startElement('a', {"linkurl": filename})
-            self.generatorendElement('a')
+            self.generator.endElement('a')
         else:
             self.generator.startElement('img', {})
             self.generator.startElement('Image', {'href': filename})
@@ -258,7 +271,7 @@ class IndesignVisitor(NodeVisitor):
         self.generator.endElement("ref")
 
     def visit_caption(self, node):
-        if node.parent.tagname == 'figure':
+        if node.parent.tagname == 'figure' or node.parent.tagname == 'container':
             raise nodes.SkipNode
         else:
             pass
@@ -309,12 +322,6 @@ class IndesignVisitor(NodeVisitor):
 #        if node.get('secnumber'):
 #            self.body.append(('%s' + self.secnumber_suffix) %
 #                             '.'.join(map(str, node['secnumber'])))
-
-    def visit_footnote(self, node):
-        self.generator.startElement("footnote", {'id':node['ids'][0]})
-
-    def depart_footnote(self, node):
-        self.generator.endElement("footnote")
 
     def visit_list_item(self, node):
         style = ""
@@ -394,23 +401,139 @@ class IndesignVisitor(NodeVisitor):
         self.newline()
 
     def visit_inline(self, node):
-        if 'xref' in node['classes'] or 'term' in node['classes']:
-            self.add_text('*')
+        pass
+        # if 'xref' in node['classes'] or 'term' in node['classes']:
+        #     self.add_text('*')
 
     def depart_inline(self, node):
-        if 'xref' in node['classes'] or 'term' in node['classes']:
-            self.add_text('*')
+        pass
+        # if 'xref' in node['classes'] or 'term' in node['classes']:
+        #     self.add_text('*')
 
     def visit_todo_node(self, node):
-        pass
+        raise nodes.SkipNode
+        # self.generator.startElement("todo", {})
 
     def depart_todo_node(self, node):
+        # self.generator.endElement("todo")
         pass
 
     def visit_container(self, node):
-        pass
+        if 'literal-block-wrapper' in node['classes']:
+            self.generator.startElement('codelist', {})
+            cap_node = node.children[0]
+            if cap_node.tagname == 'caption':
+                self.generator.startElement('caption', {})
+                self.generator.outf.write(cap_node.astext())
+                self.generator.endElement('caption')
 
     def depart_container(self, node):
+        if 'literal-block-wrapper' in node['classes']:
+            self.generator.endElement('codelist')
+
+    def visit_citation(self, node):
+        self.generator.startElement('a', {})
+        self.generator.outf.write(node.rawsource)
+        #print(node.__dict__)
+
+    def depart_citation(self, node):
+        self.generator.endElement('a')
+
+    def visit_label(self, node):
+        self.generator.startElement('label', {})
+
+    def depart_label(self, node):
+        self.generator.endElement('label')
+
+    def visit_footnote(self, node):
+        if 'obsolated' in node['classes']:
+            raise nodes.SkipNode
+        self.generator.startElement("footnote", {'id': node['ids'][0]})
+        node.children.remove(node.children[0])
+        #self.generator.startElement("footnote", {'id':node['ids'][0]})
+
+    def depart_footnote(self, node):
+        self.generator.endElement('footnote')
+        #self.generator.endElement("footnote")
+
+    def visit_footnote_reference(self, node):
+        raise nodes.SkipNode
+
+    def depart_footnote_reference(self, node):
+        pass
+
+    def visit_substitution_definition(self, node):
+        pass
+
+    def depart_substitution_definition(self, node):
+        pass
+
+    def visit_table(self, node):
+        self.tableenv = True
+        self.generator.startElement('table', {})
+
+    def depart_table(self, node):
+        self.generator.endElement('table')
+        self.tableenv = False
+
+    def visit_tgroup(self, node):
+        #self.generator.startElement('tgroup', {})
+        pass
+
+    def depart_tgroup(self, node):
+        #self.generator.endElement('tgroup')
+        pass
+
+    def visit_colspec(self, node):
+        #self.generator.startElement('colspec', {})
+        pass
+
+    def depart_colspec(self, node):
+        # self.generator.endElement('colspec')
+        pass
+
+    def visit_thead(self, node):
+        self.generator.startElement('thead', {'aid:pstyle': 'header'})
+
+    def depart_thead(self, node):
+        self.generator.endElement('thead')
+
+    def visit_row(self, node):
+        # self.generator.startElement('tr', {})
+        pass
+
+    def depart_row(self, node):
+        # self.generator.endElement('tr')
+        pass
+
+    def visit_entry(self, node):
+        self.generator.startElement('td', {
+                'aid:table': 'cell',
+                'aid:crows': '1',
+                'aid:ccols': '1'
+            })
+
+    def depart_entry(self, node):
+        self.generator.endElement('td')
+        #self.generator.outf.write('\t')
+
+    def visit_tbody(self, node):
+        tcol = str(node.parent.attributes['cols'])
+        trow = str(len(node.children))
+        self.generator.startElement('tbody',
+            {
+                'aid:tcols': tcol,
+                'aid:trows': trow,
+                'aid:table': 'table'
+            })
+
+    def depart_tbody(self, node):
+        self.generator.endElement('tbody')
+
+    def visit_problematic(self, node):
+        pass
+
+    def depart_problematic(self, node):
         pass
 
     def visit_citation(self, node):

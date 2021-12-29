@@ -2,18 +2,20 @@
 from __future__ import division, print_function, absolute_import
 
 from six import iteritems
-import os.path
 import os
 from os import path
 
 from docutils import nodes
 from sphinx.builders import Builder
-from sphinx.util.osutil import ensuredir, copyfile
+from sphinx.util import logging
 from sphinx.util.console import bold, darkgreen, brown
 from sphinx.util.nodes import inline_all_toctrees
+from sphinx.util.osutil import ensuredir, copyfile
 
 from sphinxcontrib.indesignbuilder.writer import IndesignWriter
 from sphinxcontrib.indesignbuilder.webdbwriter import WebDBXMLWriter
+
+logger = logging.getLogger(__file__)
 
 
 class IndesignXMLBuilder(Builder):
@@ -33,7 +35,7 @@ class IndesignXMLBuilder(Builder):
             self.docwriter = IndesignWriter(self, single=True)
         else:
             self.docwriter = IndesignWriter(self)
-        if not os.path.exists(self.outdir):
+        if not path.exists(self.outdir):
             os.makedirs(self.outdir)
         self._docnames = docnames
 
@@ -59,29 +61,30 @@ class IndesignXMLBuilder(Builder):
                     copyfile(path.join(self.srcdir, src),
                              path.join(self.outdir, self.imagedir, dest))
                 except Exception as err:
-                    self.warn('cannot copy image file %r: %s' %
-                              (path.join(self.srcdir, src), err))
+                    logger.warn('cannot copy image file %r: %s' %(
+                        path.join(self.srcdir, src), err))
 
     def copy_download_files(self):
         # copy downloadable files
         if self.env.dlfiles:
             ensuredir(path.join(self.outdir, '_downloads'))
-            for src in self.app.status_iterator(self.env.dlfiles,
-                                                'copying downloadable files... ',
-                                                brown, len(self.env.dlfiles)):
+            for src in self.app.status_iterator(
+                    self.env.dlfiles,
+                    'copying downloadable files... ',
+                    brown, len(self.env.dlfiles)):
                 dest = self.env.dlfiles[src][1]
                 try:
                     copyfile(path.join(self.srcdir, src),
                              path.join(self.outdir, '_downloads', dest))
                 except Exception as err:
-                    self.warn('cannot copy downloadable file %r: %s' %
+                    logger.warn('cannot copy downloadable file %r: %s' %
                               (path.join(self.srcdir, src), err))
 
 
 class SingleIndesignXMLBuilder(IndesignXMLBuilder):
     """
-    A SingleIndesignXMLBuilder subclass that puts the whole document tree on one
-    Indesign XML file.
+    A SingleIndesignXMLBuilder subclass that puts the whole document tree
+    on one Indesign XML file.
     """
     name = 'singleindesign'
     copysource = False
@@ -120,7 +123,8 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
     def assemble_doctree(self):
         master = self.config.master_doc
         tree = self.env.get_doctree(master)
-        tree = inline_all_toctrees(self, set(), master, tree, darkgreen, [master])
+        tree = inline_all_toctrees(
+            self, set(), master, tree, darkgreen, [master])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
         self.fix_refuris(tree)
@@ -172,24 +176,69 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
     def write(self, *ignored):
         docnames = self.env.all_docs
 
-        self.info(bold('preparing documents... '), nonl=True)
+        logger.info(bold('preparing documents... '), nonl=True)
         self.prepare_writing(docnames, single=True)
-        self.info('done')
+        logger.info('done')
 
-        self.info(bold('assembling single document... '), nonl=True)
+        logger.info(bold('assembling single document... '), nonl=True)
         doctree = self.assemble_doctree()
         self.env.toc_secnumbers = self.assemble_toc_secnumbers()
-        self.info()
-        self.info(bold('writing... '), nonl=True)
+        logger.info(bold('writing... '), nonl=True)
         self.write_doc_serialized(self.config.master_doc, doctree)
         self.write_doc(self.config.master_doc, doctree)
-        self.info('done')
+        logger.info('done')
 
     def finish(self):
-        self.info()
-
         self.copy_image_files()
         self.copy_download_files()
+
+
+class ChapteredIndesignXMLBuilder(SingleIndesignXMLBuilder):
+    """
+    A SingleIndesignXMLBuilder subclass that puts document tree
+    into Re:VIEW styled Indesign XML file by chapter.
+    """
+    name = 'chapteredindesign'
+    copysource = False
+    out_suffix = '.xml'
+
+    def assemble_doctree(self, chap):
+        master = '{}/{}'.format(chap, self.config.master_doc)
+        try:
+            tree = self.env.get_doctree(master)
+        except FileNotFoundError:
+            logger.warn('{} not found...'.format(master))
+            return None
+        tree = inline_all_toctrees(
+            self, set(), master, tree, darkgreen, [master])
+        tree['docname'] = master
+        self.env.resolve_references(tree, master, self)
+        self.fix_refuris(tree)
+        return tree
+
+    def write(self, *ignored):
+        all_docs = self.env.all_docs
+        chaps = list(set([doc.split('/')[0] for doc in all_docs.keys()]))
+        for chap in chaps:
+            if chap != 'index':
+                docnames = dict(
+                    [doc for doc in all_docs.items()
+                        if doc[0].startswith(chap)])
+                logger.info(bold('preparing documents... '), nonl=True)
+                self.prepare_writing(docnames, single=True)
+                logger.info('done')
+
+                logger.info(bold('assembling chapter document... '), nonl=True)
+                doctree = self.assemble_doctree(chap)
+                if doctree is not None:
+                    self.env.toc_secnumbers = self.assemble_toc_secnumbers()
+                    logger.info(bold('writing... '), nonl=True)
+                    master_doc = '{}/{}'.format(chap, self.config.master_doc)
+                    self.write_doc_serialized(master_doc, doctree)
+                    self.write_doc(master_doc, doctree)
+                    logger.info('done')
+                else:
+                    logger.info('writing ignored... continue')
 
 
 class WebDBXMLBuilder(IndesignXMLBuilder):
@@ -198,7 +247,7 @@ class WebDBXMLBuilder(IndesignXMLBuilder):
 
     def prepare_writing(self, docnames, single=False):
         self.docwriter = WebDBXMLWriter(self, single=False)
-        if not os.path.exists(self.outdir):
+        if not path.exists(self.outdir):
             os.makedirs(self.outdir)
         self._docnames = docnames
 
@@ -209,7 +258,7 @@ class SingleWebDBXMLBuilder(SingleIndesignXMLBuilder):
 
     def prepare_writing(self, docnames, single=False):
         self.docwriter = WebDBXMLWriter(self, single=True)
-        if not os.path.exists(self.outdir):
+        if not path.exists(self.outdir):
             os.makedirs(self.outdir)
         self._docnames = docnames
 
@@ -219,3 +268,4 @@ def setup(app):
     app.add_builder(SingleIndesignXMLBuilder)
     app.add_builder(WebDBXMLBuilder)
     app.add_builder(SingleWebDBXMLBuilder)
+    app.add_builder(ChapteredIndesignXMLBuilder)
