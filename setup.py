@@ -11,7 +11,7 @@ requires = ['Sphinx>=1.6', 'setuptools']
 
 setup(
     name='sphinxcontrib_indesignbuilder',
-    version='0.1.0',
+    version='0.1.1',
     url='http://github.com/shirou/sphinxcontrib-indesignbuilder',
     download_url='http://pypi.python.org/pypi/sphinxcontrib-indesignbuilder',
     license='BSD',
