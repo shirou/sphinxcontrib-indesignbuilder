@@ -36,6 +36,7 @@ class IndesignVisitor(NodeVisitor):
         self.generator.outf = self._output
 
         self.listenv = None
+        self.listlevel = 0
         self.tableenv = False
         self.within_index = False
         self.restrect_newline = True
@@ -175,6 +176,12 @@ class IndesignVisitor(NodeVisitor):
     def depart_warning(self, node):
         self.generator.endElement('warning')
 
+    def visit_topic(self, node):
+        self.generator.startElement('topic', {})
+
+    def depart_topic(self, node):
+        self.generator.endElement('topic')
+
     def visit_unknown_visit(self, node):
         pass
 
@@ -279,13 +286,27 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_bullet_list(self, node):
-        self.listenv = "ul"
-        self.generator.startElement("ul", {})
+        self.listlevel += 1
+        if self.listlevel == 1:
+            listenv = "ul"
+        elif self.listlevel == 2:
+            listenv = 'ul2'
+        else:
+            logger.info('logging level upper 3')
+            listenv = 'ul3'
+        self.generator.startElement(listenv, {})
+        self.listenv = listenv
         self.newline()
 
     def depart_bullet_list(self, node):
-        self.listenv = None
-        self.generator.endElement("ul")
+        self.generator.endElement(self.listenv)
+        self.listlevel = self.listlevel - 1
+        if self.listlevel == 0:
+            self.listenv = None
+        elif self.listlevel == 1:
+            self.listenv = "ul"
+        elif self.listlevel >= 2:
+            self.listenv = "ul2"
         self.newline()
 
     def visit_enumerated_list(self, node):
@@ -469,6 +490,7 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_table(self, node):
         self.tableenv = True
+        self.cols = 0
         self.generator.startElement('table', {})
 
     def depart_table(self, node):
