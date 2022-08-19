@@ -189,10 +189,14 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_number_reference(self, node):
-        pass
+        attrs = {}
+        if 'refid' in node.attributes:
+            attrs['refid'] = node['refid']
+        self.generator.startElement(
+            'numref', attrs)
 
     def depart_number_reference(self, node):
-        pass
+        self.generator.endElement('numref')
 
     def visit_literal_block(self, node):
         self.generator.startElement('pre', {})
@@ -273,9 +277,6 @@ class IndesignVisitor(NodeVisitor):
     def depart_image(self, node):
         pass
 
-    def depart_reference(self, node):
-        self.generator.endElement("ref")
-
     def visit_caption(self, node):
         if node.parent.tagname == 'figure' or node.parent.tagname == 'container':
             raise nodes.SkipNode
@@ -336,12 +337,15 @@ class IndesignVisitor(NodeVisitor):
         if 'reftitle' in node:
             atts['title'] = node['reftitle']
         self.generator.startElement("ref", atts)
+        if node.get('secnumber'):
+            self.body.append(('%s' + self.secnumber_suffix) %
+                             '.'.join(map(str, node['secnumber'])))
+        self.generator.endElement("ref")
 
-        #self.generator.endElement("ref")
+    def depart_reference(self, node):
+        pass
+    #    self.generator.endElement("ref")
 
-#        if node.get('secnumber'):
-#            self.body.append(('%s' + self.secnumber_suffix) %
-#                             '.'.join(map(str, node['secnumber'])))
 
     def visit_list_item(self, node):
         style = ""
