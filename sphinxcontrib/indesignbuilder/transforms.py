@@ -5,7 +5,7 @@ from sphinx.transforms import SphinxTransform
 from sphinx.util import logging
 
 
-class IdgxmlFootnoteTransform(SphinxTransform):
+class IdgxmlTransform(SphinxTransform):
     default_priority = 300
 
     def transform_indd_table(self):
@@ -17,7 +17,7 @@ class IdgxmlFootnoteTransform(SphinxTransform):
             tb.insert(0, th.children[0])
             th.parent.remove(th)
 
-    def transform_chaptered_doc(self):
+    def transform_chap_doc_footnote(self):
         fns = self.document.traverse(nodes.footnote)
         fn_refs = self.document.traverse(nodes.footnote_reference)
         if 'docname' not in self.document.attributes:
@@ -33,7 +33,7 @@ class IdgxmlFootnoteTransform(SphinxTransform):
             return
 
         if self.app.builder.name == 'chapteredindesign':
-            self.transform_chaptered_doc()
+            self.transform_chap_doc_footnote()
 
         fns = self.document.traverse(nodes.footnote)
         fn_refs = self.document.traverse(nodes.footnote_reference)
@@ -49,4 +49,4 @@ class IdgxmlFootnoteTransform(SphinxTransform):
 
 
 def setup(app):
-    app.add_post_transform(IdgxmlFootnoteTransform)
+    app.add_post_transform(IdgxmlTransform)

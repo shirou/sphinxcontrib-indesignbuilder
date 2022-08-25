@@ -25,11 +25,26 @@ class IndesignXMLBuilder(Builder):
     """
     name = 'indesign'
     format = 'xml'
+    out_suffix = '.xml'
     supported_image_types = ['image/svg+xml', 'image/png',
                              'image/gif', 'image/jpeg']
 
     def get_outdated_docs(self):
         return []
+
+    def fix_refuris(self, tree):
+        # fix refuris with double anchor
+        fname = self.config.master_doc + self.out_suffix
+        for refnode in tree.traverse(nodes.reference):
+            if 'refuri' not in refnode:
+                continue
+            refuri = refnode['refuri']
+            hashindex = refuri.find('#')
+            if hashindex < 0:
+                continue
+            hashindex = refuri.find('#', hashindex+1)
+            if hashindex >= 0:
+                refnode['refuri'] = fname + refuri[hashindex:]
 
     def prepare_writing(self, docnames, single=False):
         if single:
@@ -47,8 +62,8 @@ class IndesignXMLBuilder(Builder):
                                docname + ".xml"), "w", encoding="utf-8") as f:
             self.docwriter.write(doctree, f)
 
-    def get_target_uri(self, *args, **kwds):
-        return "index.xml"
+    def get_target_uri(self, docname, typ=None):
+        return docname + self.out_suffix
 
     def copy_image_files(self):
         # copy image files

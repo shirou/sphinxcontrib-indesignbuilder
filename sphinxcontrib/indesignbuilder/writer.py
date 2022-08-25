@@ -72,6 +72,9 @@ class IndesignVisitor(NodeVisitor):
     def visit_section(self, node):
         assert not self.within_index
         self.sec_level += 1
+        for target in node['ids'][1:]:
+            self.generator.startElement('a', {'id': "#%s" % target})
+            self.generator.endElement('a')
 
     def depart_section(self, node):
         self.sec_level -= 1
@@ -79,8 +82,11 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_title(self, node):
         level = "h" + str(self.sec_level)
-        self.generator.startElement('title',
-                                    {"aid:pstyle": level})
+        if 'refuri' in node:
+            attrs = {"aid:pstyle": level, "refid": " ".join(node['refuri'])}
+        else:
+            attrs = {"aid:pstyle": level}
+        self.generator.startElement('title', attrs)
 
     def depart_title(self, node):
         self.generator.endElement('title')
@@ -326,7 +332,9 @@ class IndesignVisitor(NodeVisitor):
         else:
             atts['class'] += ' external'
         if 'refuri' in node:
-            atts['href'] = node['refuri']
+            #if node['refuri'] != '':
+            #    raise
+            atts['href'] = node['refuri'] or '#'
         else:
             assert 'refid' in node, \
                    'References must have "refuri" or "refid" attribute.'
@@ -336,7 +344,10 @@ class IndesignVisitor(NodeVisitor):
             atts['class'] += ' image-reference'
         if 'reftitle' in node:
             atts['title'] = node['reftitle']
+        if 'target' in node:
+            atts['target'] = node['target']
         self.generator.startElement("ref", atts)
+
         if node.get('secnumber'):
             self.body.append(('%s' + self.secnumber_suffix) %
                              '.'.join(map(str, node['secnumber'])))
@@ -567,7 +578,7 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_column(self, node):
         self.generator.startElement('column', {})
-        self.generator.outf.write('<title aid:pstyle="column-title">%s</title>' % node['title'])
+        self.generator.outf.write('<title aid:pstyle="column-title" id="%s">%s</title>' % (node['ids'], node['title']))
 
     def depart_column(self, node):
         self.generator.endElement('column')
