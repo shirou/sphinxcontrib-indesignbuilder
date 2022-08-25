@@ -11,6 +11,7 @@ from xml.sax.saxutils import XMLGenerator
 
 logger = logging.getLogger(__name__)
 
+import os
 
 class IndesignWriter(Writer):
     def __init__(self, builder, single=False):
@@ -560,6 +561,86 @@ class IndesignVisitor(NodeVisitor):
                 'aid:trows': trow,
                 'aid:table': 'table'
             })
+
+    def depart_tbody(self, node):
+        self.generator.endElement('tbody')
+
+    def visit_problematic(self, node):
+        pass
+
+    def depart_problematic(self, node):
+        pass
+
+    def visit_citation(self, node):
+        self.generator.startElement('a', {})
+        self.generator.outf.write(node.rawsource)
+        #print(node.__dict__)
+
+    def depart_citation(self, node):
+        self.generator.endElement('a')
+
+    def visit_label(self, node):
+        self.generator.startElement('label', {})
+
+    def depart_label(self, node):
+        self.generator.endElement('label')
+
+    def visit_footnote_reference(self, node):
+        self.generator.startElement('footnote', {'href': node['refid']})
+
+    def depart_footnote_reference(self, node):
+        self.generator.endElement('footnote')
+
+    def visit_substitution_definition(self, node):
+        pass
+
+    def depart_substitution_definition(self, node):
+        pass
+
+    def visit_table(self, node):
+        self.tableenv = True
+        self.generator.startElement('table', {})
+
+    def depart_table(self, node):
+        self.generator.endElement('table')
+        self.tableenv = False
+
+    def visit_tgroup(self, node):
+        #self.generator.startElement('tgroup', {})
+        pass
+
+    def depart_tgroup(self, node):
+        #self.generator.endElement('tgroup')
+        pass
+
+    def visit_colspec(self, node):
+        self.generator.startElement('colspec', {})
+
+    def depart_colspec(self, node):
+        self.generator.endElement('colspec')
+
+    def visit_thead(self, node):
+        self.generator.startElement('thead', {'aid:pstyle': 'header'})
+
+    def depart_thead(self, node):
+        self.generator.endElement('thead')
+
+    def visit_row(self, node):
+        self.generator.startElement('tr', {})
+
+    def depart_row(self, node):
+        self.generator.endElement('tr')
+
+    def visit_entry(self, node):
+        #self.generator.startElement('entry', {})
+        pass
+
+    def depart_entry(self, node):
+        #self.generator.endElement('entry')
+        self.generator.outf.write('\t')
+
+    def visit_tbody(self, node):
+        self.generator.startElement('tbody', {})
 
     def depart_tbody(self, node):
         self.generator.endElement('tbody')
