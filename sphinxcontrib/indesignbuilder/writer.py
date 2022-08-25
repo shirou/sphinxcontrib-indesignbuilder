@@ -340,11 +340,9 @@ class IndesignVisitor(NodeVisitor):
         if node.get('secnumber'):
             self.body.append(('%s' + self.secnumber_suffix) %
                              '.'.join(map(str, node['secnumber'])))
-        self.generator.endElement("ref")
 
     def depart_reference(self, node):
-        pass
-    #    self.generator.endElement("ref")
+        self.generator.endElement("ref")
 
 
     def visit_list_item(self, node):
