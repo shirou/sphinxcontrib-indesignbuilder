@@ -73,8 +73,18 @@ class IndesignVisitor(NodeVisitor):
     def visit_section(self, node):
         assert not self.within_index
         self.sec_level += 1
-        for target in node['ids'][1:]:
-            self.generator.startElement('a', {'id': "#%s" % target})
+        if node.previous_sibling().tagname != 'target':
+            target_id = node['ids'][0]
+            try:
+                target_name = node['names'][0]
+            except IndexError:
+                target_name = node['dupnames'][0]
+            self.generator.startElement(
+                'a', {
+                        'id': "#%s" % target_id,
+                        'name': '%s' % target_name
+                    }
+                )
             self.generator.endElement('a')
 
     def depart_section(self, node):
@@ -116,11 +126,16 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_target(self, node):
-        # self.generator.startElement('section', {})
-        pass
+        if len(node.attributes['ids']) > 0:
+            atts = {'id': node['ids'][0]}
+        elif node.attributes['refid']:
+            atts = {'id': node['refid']}
+        else:
+            atts = {}
+        self.generator.startElement('a', atts)
 
     def depart_target(self, node):
-        pass
+        self.generator.endElement('a')
 
     def visit_emphasis(self, node):
         self.generator.startElement("i", {})
