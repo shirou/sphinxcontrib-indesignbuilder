@@ -365,8 +365,7 @@ class IndesignVisitor(NodeVisitor):
         self.generator.startElement("ref", atts)
 
         if node.get('secnumber'):
-            self.body.append(('%s' + self.secnumber_suffix) %
-                             '.'.join(map(str, node['secnumber'])))
+            self.generator.outf.write('%s　' % '.'.join(map(str, node['secnumber'])))
 
     def depart_reference(self, node):
         self.generator.endElement("ref")
@@ -554,6 +553,18 @@ class IndesignVisitor(NodeVisitor):
 
     def depart_row(self, node):
         # self.generator.endElement('tr')
+        pass
+
+    def visit_line_block(self, node):
+        pass
+
+    def depart_line_block(self, node):
+        pass
+
+    def visit_line(self, node):
+        pass
+
+    def depart_line(self, node):
         pass
 
     def visit_entry(self, node):
