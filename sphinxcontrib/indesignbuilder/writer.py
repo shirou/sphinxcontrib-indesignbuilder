@@ -38,6 +38,7 @@ class IndesignVisitor(NodeVisitor):
 
         self.listenv = None
         self.listlevel = 0
+        self.adomonienv = None
         self.tableenv = False
         self.within_index = False
         self.restrect_newline = True
@@ -144,10 +145,16 @@ class IndesignVisitor(NodeVisitor):
         self.generator.endElement("i")
 
     def visit_math(self, node):
-        pass
+        self.generator.startElement("m", {})
 
     def depart_math(self, node):
-        pass
+        self.generator.endElement("m")
+
+    def visit_math_block(self, node):
+        self.generator.startElement("math", {})
+
+    def depart_math_block(self, node):
+        self.generator.endElement("math")
 
     def visit_doctest_block(self, node):
         self.generator.startElement("programlisting",
@@ -174,35 +181,54 @@ class IndesignVisitor(NodeVisitor):
     def depart_displaymath(self, node):
         pass
 
+    def _visit_adomonitions(self, node, label):
+        if self.listenv:
+            self.adomonienv = self.listenv
+            self.listenv = None
+            self.newline()
+        self.generator.startElement(label, {})
+
+    def _depart_adomonitions(self, node, label):
+        if self.adomonienv != None:
+            self.listenv = self.adomonienv
+            self.adomonienv = None
+        self.generator.endElement(label)
+
     def visit_note(self, node):
-        self.generator.startElement('note', {})
+        self._visit_adomonitions(node, 'note')
 
     def depart_note(self, node):
-        self.generator.endElement('note')
+        self._depart_adomonitions(node, 'note')
 
     def visit_tip(self, node):
-        self.generator.startElement('tip', {})
+        self._visit_adomonitions(node, 'tip')
 
     def depart_tip(self, node):
-        self.generator.endElement('tip')
+        self._depart_adomonitions(node, 'tip')
 
     def visit_caution(self, node):
-        self.generator.startElement('caution', {})
+        self._visit_adomonitions(node, 'caution')
 
     def depart_caution(self, node):
-        self.generator.endElement('caution')
+        self._depart_adomonitions('caution')
 
     def visit_warning(self, node):
-        self.generator.startElement('warning', {})
+        self._visit_adomonitions(node, 'warning')
 
     def depart_warning(self, node):
-        self.generator.endElement('warning')
+        self._depart_adomonitions(node, 'warning')
 
     def visit_topic(self, node):
-        self.generator.startElement('topic', {})
+        self._visit_adomonitions(node, 'topic')
 
     def depart_topic(self, node):
-        self.generator.endElement('topic')
+        self._depart_adomonitions(node, 'topic')
+
+    def visit_admonition(self, node):
+        self._visit_adomonitions(node, 'admonition')
+
+    def depart_admonition(self, node):
+        self._depart_adomonitions(node, 'admonition')
 
     def visit_unknown_visit(self, node):
         pass
@@ -264,48 +290,34 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_figure(self, node):
-        pass
-
+        self.generator.startElement('figure', {})
+        
     def depart_figure(self, node):
-        pass
+        self.generator.endElement('figure')
 
     def visit_image(self, node):
-        caption = None
-        for c in node.parent.children:
-            if isinstance(c, nodes.caption):
-                caption = c.astext()
-        legend = None
-        for c in node.parent.children:
-            if isinstance(c, nodes.legend):
-                legend = c.astext()
-
-        filename = os.path.basename(os.path.splitext(node['uri'])[0])
+        filename = node['uri']
         if node.get('inline'):
             self.generator.startElement('a', {"linkurl": filename})
-            self.generator.endElement('a')
         else:
-            self.generator.startElement('img', {})
             self.generator.startElement('Image', {'href': filename})
-            self.generator.endElement('Image')
-            if caption:
-                self.generator.startElement('caption', {})
-                self.generator.outf.write(caption)
-                self.generator.endElement('caption')
-            if legend:
-               self.add_lines([legend])
-            self.generator.endElement('img')
-        raise nodes.SkipNode
 
     def depart_image(self, node):
-        pass
+        if node.get('inline'):
+            self.generator.endElement('a')
+        else:    
+            self.generator.endElement('Image')
 
     def visit_caption(self, node):
-        if node.parent.tagname == 'figure' or node.parent.tagname == 'container':
-            raise nodes.SkipNode
-        else:
-            pass
+        self.generator.startElement('caption', {})
 
     def depart_caption(self, node):
+        self.generator.endElement('caption')
+
+    def visit_legend(self, node):
+        pass
+
+    def depart_legend(self, node):
         pass
 
     def visit_bullet_list(self, node):
@@ -334,7 +346,10 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_enumerated_list(self, node):
         self.listenv = "ol"
-        self.generator.startElement("ol", {})
+        if 'start' in node.attributes:
+            self.generator.startElement("ol", {'start': str(node['start'])})
+        else:
+            self.generator.startElement("ol", {})
         self.newline()
 
     def depart_enumerated_list(self, node):
@@ -469,11 +484,6 @@ class IndesignVisitor(NodeVisitor):
     def visit_container(self, node):
         if 'literal-block-wrapper' in node['classes']:
             self.generator.startElement('codelist', {})
-            cap_node = node.children[0]
-            if cap_node.tagname == 'caption':
-                self.generator.startElement('caption', {})
-                self.generator.outf.write(cap_node.astext())
-                self.generator.endElement('caption')
 
     def depart_container(self, node):
         if 'literal-block-wrapper' in node['classes']:
@@ -494,21 +504,23 @@ class IndesignVisitor(NodeVisitor):
         self.generator.endElement('label')
 
     def visit_footnote(self, node):
+        # omit node if marked as 'obsolated' (this is added in transforms.py)
         if 'obsolated' in node['classes']:
             raise nodes.SkipNode
         self.generator.startElement("footnote", {'id': node['ids'][0]})
         node.children.remove(node.children[0])
-        #self.generator.startElement("footnote", {'id':node['ids'][0]})
 
     def depart_footnote(self, node):
         self.generator.endElement('footnote')
-        #self.generator.endElement("footnote")
 
     def visit_footnote_reference(self, node):
         raise nodes.SkipNode
+        #self.generator.startElement("footnote_reference", {'refid': node['refid']})
+        # node.children.remove(node.children[0])
 
     def depart_footnote_reference(self, node):
         pass
+        #self.generator.endElement("footnote_reference")
 
     def visit_substitution_definition(self, node):
         pass

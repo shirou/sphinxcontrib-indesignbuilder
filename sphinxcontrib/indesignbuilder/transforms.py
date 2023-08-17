@@ -9,6 +9,7 @@ class IdgxmlTransform(SphinxTransform):
     default_priority = 300
 
     def transform_indd_table(self):
+        # type: () -> None
         ths = self.document.traverse(nodes.thead)
         if len(ths) == 0:
             return
@@ -17,7 +18,20 @@ class IdgxmlTransform(SphinxTransform):
             tb.insert(0, th.children[0])
             th.parent.remove(th)
 
+    def transform_footnote(self):
+        fns = self.document.traverse(nodes.footnote)
+        fn_refs = self.document.traverse(nodes.footnote_reference)
+
+        for fn_ref in fn_refs:
+            for fn in fns:
+                if fn['ids'][0] in fn_ref['refid']:
+                    if fn_ref in fn_ref.parent.children:
+                        fn_ref.replace_self(new=fn.deepcopy())
+                        fn['classes'].append('obsolated')
+
+
     def transform_chap_doc_footnote(self):
+        # type: () -> None
         fns = self.document.traverse(nodes.footnote)
         fn_refs = self.document.traverse(nodes.footnote_reference)
         if 'docname' not in self.document.attributes:
@@ -35,18 +49,10 @@ class IdgxmlTransform(SphinxTransform):
         if self.app.builder.name == 'chapteredindesign':
             self.transform_chap_doc_footnote()
 
-        fns = self.document.traverse(nodes.footnote)
-        fn_refs = self.document.traverse(nodes.footnote_reference)
-
         self.transform_indd_table()
-
-        for fn_ref in fn_refs:
-            for fn in fns:
-                if fn['ids'][0] in fn_ref['refid']:
-                    if fn_ref in fn_ref.parent.children:
-                        fn_ref.parent.replace(old=fn_ref, new=fn.deepcopy())
-                        fn['classes'].append('obsolated')
+        self.transform_footnote()
 
 
 def setup(app):
+    # type: () -> None
     app.add_post_transform(IdgxmlTransform)
