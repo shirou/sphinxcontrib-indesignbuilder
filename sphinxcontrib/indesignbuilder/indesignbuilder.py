@@ -55,6 +55,7 @@ class IndesignXMLBuilder(Builder):
         self._docnames = docnames
 
     def write_doc(self, docname, doctree):
+        self.fignumbers = self.env.toc_fignumbers.get(docname, {})
         if docname.find("/") >= 0:
             ensuredir(os.path.join(self.outdir, docname.split("/")[0]))
         with open(os.path.join(self.outdir,
@@ -233,6 +234,7 @@ class ChapteredIndesignXMLBuilder(SingleIndesignXMLBuilder):
 
     def write(self, *ignored):
         all_docs = self.env.all_docs
+        self.fignumbers = self.env.toc_fignumbers.get(docname, {})
         chaps = list(set([doc.split('/')[0] for doc in all_docs.keys()]))
         for chap in chaps:
             if chap != 'index':

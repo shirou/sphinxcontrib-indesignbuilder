@@ -3,6 +3,7 @@ from docutils import nodes
 from sphinx import transforms
 from sphinx.transforms import SphinxTransform
 from sphinx.util import logging
+from sphinx import addnodes
 
 
 class IdgxmlTransform(SphinxTransform):
@@ -19,16 +20,24 @@ class IdgxmlTransform(SphinxTransform):
             th.parent.remove(th)
 
     def transform_footnote(self):
-        fns = self.document.traverse(nodes.footnote)
-        fn_refs = self.document.traverse(nodes.footnote_reference)
-
-        for fn_ref in fn_refs:
-            for fn in fns:
+        # type: () -> None
+        for fn_ref in self.document.traverse(nodes.footnote_reference):
+            for fn in self.document.traverse(nodes.footnote):
                 if fn['ids'][0] in fn_ref['refid']:
                     if fn_ref in fn_ref.parent.children:
                         fn_ref.replace_self(new=fn.deepcopy())
                         fn['classes'].append('obsolated')
 
+    def transform_fignumbers(self):
+        # type: () -> None
+        fignumbers = self.app.env.toc_fignumbers
+        for docname in fignumbers.keys():
+            for figtype in fignumbers[docname].keys():
+                cnt = 1
+                for fig in fignumbers[docname][figtype]:
+                    fignum = fignumbers[docname][figtype][fig]
+                    fignumbers[docname][figtype][fig] = (fignum[0], cnt)
+                    cnt = cnt + 1
 
     def transform_chap_doc_footnote(self):
         # type: () -> None
@@ -51,7 +60,7 @@ class IdgxmlTransform(SphinxTransform):
 
         self.transform_indd_table()
         self.transform_footnote()
-
+        self.transform_fignumbers()
 
 def setup(app):
     # type: () -> None

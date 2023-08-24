@@ -3,7 +3,7 @@
 import os
 
 from docutils import nodes
-from docutils.nodes import NodeVisitor
+from docutils.nodes import Element, NodeVisitor
 from docutils.writers import Writer
 from six import StringIO
 from sphinx.util import logging
@@ -23,15 +23,16 @@ class IndesignWriter(Writer):
         if self.single:
             self.visitor = visitor = SingleIndesignVisitor(self.document)
         else:
-            self.visitor = visitor = IndesignVisitor(self.document)
+            self.visitor = visitor = IndesignVisitor(self.document, self.builder)
         self.document.walkabout(visitor)
         self.output = visitor.astext()
 
 
 class IndesignVisitor(NodeVisitor):
-    def __init__(self, document):
+    def __init__(self, document, builder):
         NodeVisitor.__init__(self, document)
 
+        self.builder = builder
         self._output = StringIO()
         self.generator = XMLGenerator(self._output, "utf-8")
         self.generator.outf = self._output
@@ -49,6 +50,28 @@ class IndesignVisitor(NodeVisitor):
 
     def astext(self):
         return self._output.getvalue()
+
+    def add_fignumber(self, node: Element) -> None:
+        def append_fignumber(figtype: str, figure_id: str) -> None:
+            key = figtype
+            if figure_id in self.builder.fignumbers.get(key, {}):
+                self.generator.outf.write('<span class="caption-number">')
+                prefix = self.builder.config.numfig_format.get(figtype)
+                if prefix is None:
+                    msg = __('numfig_format is not defined for %s') % figtype
+                    logger.warning(msg)
+                else:
+                    numbers = self.builder.fignumbers[key][figure_id]
+                    self.generator.outf.write(prefix % '-'.join(map(str, numbers)) + '：')
+                    self.generator.outf.write('</span>')
+        figtype = self.builder.env.domains['std'].get_enumerable_node_type(node)
+        if figtype:
+            if len(node['ids']) == 0:
+                msg = __('Any IDs not assigned for %s node') % node.tagname
+                logger.warning(msg, location=node)
+            else:
+                append_fignumber(figtype, node['ids'][0])
+
 
     def visit_document(self, node):
         self.generator.startDocument()
@@ -240,8 +263,7 @@ class IndesignVisitor(NodeVisitor):
         attrs = {}
         if 'refid' in node.attributes:
             attrs['refid'] = node['refid']
-        self.generator.startElement(
-            'numref', attrs)
+        self.generator.startElement('numref', attrs)
 
     def depart_number_reference(self, node):
         self.generator.endElement('numref')
@@ -290,7 +312,7 @@ class IndesignVisitor(NodeVisitor):
         pass
 
     def visit_figure(self, node):
-        self.generator.startElement('figure', {})
+        self.generator.startElement('figure', {'id':node['ids'][0]})
         
     def depart_figure(self, node):
         self.generator.endElement('figure')
@@ -310,6 +332,7 @@ class IndesignVisitor(NodeVisitor):
 
     def visit_caption(self, node):
         self.generator.startElement('caption', {})
+        self.add_fignumber(node.parent)
 
     def depart_caption(self, node):
         self.generator.endElement('caption')
