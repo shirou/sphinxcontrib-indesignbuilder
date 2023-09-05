@@ -272,3 +272,6 @@ def setup(app):
     app.add_builder(SingleWebDBXMLBuilder)
     app.add_builder(ChapteredIndesignXMLBuilder)
 
+    # :indesign_builder_numfig_puncutuate_mark:
+    #       numfigに挿入する章番号と図番号の接続記号を指定する。
+    app.add_config_value('indesign_builder_numfig_puncutuate_mark', '.', 'env')

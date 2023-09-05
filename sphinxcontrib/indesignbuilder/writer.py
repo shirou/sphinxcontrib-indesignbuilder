@@ -61,8 +61,9 @@ class IndesignVisitor(NodeVisitor):
                     msg = __('numfig_format is not defined for %s') % figtype
                     logger.warning(msg)
                 else:
+                    p_mark = self.builder.env.indesign_builder_numfig_puncutuate_mark
                     numbers = self.builder.fignumbers[key][figure_id]
-                    self.generator.outf.write(prefix % '-'.join(map(str, numbers)) + '：')
+                    self.generator.outf.write(prefix % p_mark.join(map(str, numbers)) + '：')
                     self.generator.outf.write('</span>')
         figtype = self.builder.env.domains['std'].get_enumerable_node_type(node)
         if figtype:
