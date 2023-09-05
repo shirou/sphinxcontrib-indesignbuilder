@@ -122,20 +122,6 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
         # ignore source
         return self.get_target_uri(to, typ)
 
-    def fix_refuris(self, tree):
-        # fix refuris with double anchor
-        fname = self.config.master_doc + self.out_suffix
-        for refnode in tree.traverse(nodes.reference):
-            if 'refuri' not in refnode:
-                continue
-            refuri = refnode['refuri']
-            hashindex = refuri.find('#')
-            if hashindex < 0:
-                continue
-            hashindex = refuri.find('#', hashindex+1)
-            if hashindex >= 0:
-                refnode['refuri'] = fname + refuri[hashindex:]
-
     def assemble_doctree(self):
         master = self.config.master_doc
         tree = self.env.get_doctree(master)
@@ -143,7 +129,6 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
             self, set(), master, tree, darkgreen, [master])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
-        self.fix_refuris(tree)
         return tree
 
     def assemble_toc_secnumbers(self):
@@ -286,3 +271,4 @@ def setup(app):
     app.add_builder(WebDBXMLBuilder)
     app.add_builder(SingleWebDBXMLBuilder)
     app.add_builder(ChapteredIndesignXMLBuilder)
+

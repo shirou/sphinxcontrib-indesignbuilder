@@ -403,7 +403,7 @@ class IndesignVisitor(NodeVisitor):
         self.generator.startElement("ref", atts)
 
         if node.get('secnumber'):
-            self.generator.outf.write('%s　' % '.'.join(map(str, node['secnumber'])))
+            self.generator.outf.write('%s' % '.'.join(map(str, node['secnumber'])))
 
     def depart_reference(self, node):
         self.generator.endElement("ref")
