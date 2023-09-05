@@ -24,11 +24,26 @@ class IndesignXMLBuilder(Builder):
     """
     name = 'indesign'
     format = 'xml'
+    out_suffix = '.xml'
     supported_image_types = ['image/svg+xml', 'image/png',
                              'image/gif', 'image/jpeg']
 
     def get_outdated_docs(self):
         return []
+
+    def fix_refuris(self, tree):
+        # fix refuris with double anchor
+        fname = self.config.master_doc + self.out_suffix
+        for refnode in tree.traverse(nodes.reference):
+            if 'refuri' not in refnode:
+                continue
+            refuri = refnode['refuri']
+            hashindex = refuri.find('#')
+            if hashindex < 0:
+                continue
+            hashindex = refuri.find('#', hashindex+1)
+            if hashindex >= 0:
+                refnode['refuri'] = fname + refuri[hashindex:]
 
     def prepare_writing(self, docnames, single=False):
         if single:
@@ -40,14 +55,15 @@ class IndesignXMLBuilder(Builder):
         self._docnames = docnames
 
     def write_doc(self, docname, doctree):
+        self.fignumbers = self.env.toc_fignumbers.get(docname, {})
         if docname.find("/") >= 0:
             ensuredir(os.path.join(self.outdir, docname.split("/")[0]))
         with open(os.path.join(self.outdir,
                                docname + ".xml"), "w", encoding="utf-8") as f:
             self.docwriter.write(doctree, f)
 
-    def get_target_uri(self, *args, **kwds):
-        return "index.xml"
+    def get_target_uri(self, docname, typ=None):
+        return docname + self.out_suffix
 
     def copy_image_files(self):
         # copy image files
@@ -106,20 +122,6 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
         # ignore source
         return self.get_target_uri(to, typ)
 
-    def fix_refuris(self, tree):
-        # fix refuris with double anchor
-        fname = self.config.master_doc + self.out_suffix
-        for refnode in tree.traverse(nodes.reference):
-            if 'refuri' not in refnode:
-                continue
-            refuri = refnode['refuri']
-            hashindex = refuri.find('#')
-            if hashindex < 0:
-                continue
-            hashindex = refuri.find('#', hashindex+1)
-            if hashindex >= 0:
-                refnode['refuri'] = fname + refuri[hashindex:]
-
     def assemble_doctree(self):
         master = self.config.master_doc
         tree = self.env.get_doctree(master)
@@ -127,7 +129,6 @@ class SingleIndesignXMLBuilder(IndesignXMLBuilder):
             self, set(), master, tree, darkgreen, [master])
         tree['docname'] = master
         self.env.resolve_references(tree, master, self)
-        self.fix_refuris(tree)
         return tree
 
     def assemble_toc_secnumbers(self):
@@ -218,6 +219,7 @@ class ChapteredIndesignXMLBuilder(SingleIndesignXMLBuilder):
 
     def write(self, *ignored):
         all_docs = self.env.all_docs
+        self.fignumbers = self.env.toc_fignumbers.get(docname, {})
         chaps = list(set([doc.split('/')[0] for doc in all_docs.keys()]))
         for chap in chaps:
             if chap != 'index':
@@ -269,3 +271,7 @@ def setup(app):
     app.add_builder(WebDBXMLBuilder)
     app.add_builder(SingleWebDBXMLBuilder)
     app.add_builder(ChapteredIndesignXMLBuilder)
+
+    # :indesign_builder_numfig_puncutuate_mark:
+    #       numfigに挿入する章番号と図番号の接続記号を指定する。
+    app.add_config_value('indesign_builder_numfig_puncutuate_mark', '.', 'env')
